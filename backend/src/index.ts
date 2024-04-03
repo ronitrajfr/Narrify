@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { decode, sign, verify } from "hono/jwt";
+import { sign, verify } from "hono/jwt";
 import { PrismaClient } from "@prisma/client/edge";
 import { withAccelerate } from "@prisma/extension-accelerate";
 
@@ -13,24 +13,21 @@ const app = new Hono<{
   };
 }>();
 
-const authMiddleware = async (c, next) => {
+app.use("/api/v1/blog/*", async (c, next) => {
   const jwt = c.req.header("Authorization");
   if (!jwt) {
     c.status(401);
     return c.json({ error: "unauthorized" });
   }
   const token = jwt.split(" ")[1];
-  const payload = await verify(token, c.env.JWT_SECRET); // Perform asynchronous operation within handler
+  const payload = await verify(token, c.env.JWT_SECRET);
   if (!payload) {
     c.status(401);
     return c.json({ error: "unauthorized" });
   }
   c.set("userId", payload.id);
   await next();
-};
-
-// Apply middleware to specific routes
-app.use("/api/v1/blog/*", authMiddleware);
+});
 
 app.post("/api/v1/user/signup", async (c) => {
   const prisma = new PrismaClient({
@@ -89,20 +86,70 @@ app.post("/api/v1/user/signin", async (c) => {
   }
 });
 
-app.post("/api/v1/blog", (c) => {
-  return c.text("Hello Hono!");
+app.post("/api/v1/blog", async (c) => {
+  const userId = c.get("userId");
+  const prisma = new PrismaClient({
+    datasourceUrl: c.env?.DATABASE_URL,
+  }).$extends(withAccelerate());
+  const body = await c.req.json();
+  try {
+    const newPost = await prisma.post.create({
+      data: {
+        title: body.title,
+        content: body.content,
+        authorId: userId,
+      },
+    });
+
+    return c.json({ id: newPost.id });
+  } catch (error) {
+    return c.json({ error });
+  }
 });
 
-app.put("/api/v1/blog", (c) => {
-  return c.text("Hello Hono!");
+app.put("/api/v1/blog", async (c) => {
+  const userId = c.get("userId");
+  const prisma = new PrismaClient({
+    datasourceUrl: c.env?.DATABASE_URL,
+  }).$extends(withAccelerate());
+
+  const body = await c.req.json();
+  const updatePost = await prisma.post.update({
+    where: {
+      id: body.id,
+      authorId: userId,
+    },
+    data: {
+      title: body.title,
+      content: body.content,
+    },
+  });
+
+  return c.json({ msg: "post updated successfully" });
 });
 
-app.get("/api/v1/blog/:id", (c) => {
-  return c.text("Hello Hono!");
+app.get("/api/v1/blog/:id", async (c) => {
+  const id = c.req.param("id");
+  const prisma = new PrismaClient({
+    datasourceUrl: c.env?.DATABASE_URL,
+  }).$extends(withAccelerate());
+
+  const findPost = await prisma.post.findUnique({
+    where: {
+      id,
+    },
+  });
+  return c.json({ findPost });
 });
 
-app.get("/api/v1/blog/bulk", (c) => {
-  return c.text("Hello Hono!");
+app.get("/api/v1/blog/bulk", async (c) => {
+  const prisma = new PrismaClient({
+    datasourceUrl: c.env?.DATABASE_URL,
+  }).$extends(withAccelerate());
+
+  const posts = await prisma.post.findMany({});
+
+  return c.json(posts); // Sending 'posts' instead of 'findPost'
 });
 
 export default app;
