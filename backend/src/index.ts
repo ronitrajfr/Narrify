@@ -61,6 +61,16 @@ app.post("/api/v1/user/signup", async (c) => {
   }
 });
 
+app.get("/api/v1/blog/bulk", async (c) => {
+  const prisma = new PrismaClient({
+    datasourceUrl: c.env?.DATABASE_URL,
+  }).$extends(withAccelerate());
+
+  const posts = await prisma.post.findMany({});
+
+  return c.json(posts); // Sending 'posts' instead of 'findPost'
+});
+
 app.post("/api/v1/user/signin", async (c) => {
   const prisma = new PrismaClient({
     datasourceUrl: c.env?.DATABASE_URL,
@@ -140,16 +150,6 @@ app.get("/api/v1/blog/:id", async (c) => {
     },
   });
   return c.json({ findPost });
-});
-
-app.get("/api/v1/blog/bulk", async (c) => {
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env?.DATABASE_URL,
-  }).$extends(withAccelerate());
-
-  const posts = await prisma.post.findMany({});
-
-  return c.json(posts); // Sending 'posts' instead of 'findPost'
 });
 
 export default app;
