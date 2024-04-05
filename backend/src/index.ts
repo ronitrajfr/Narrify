@@ -1,6 +1,12 @@
 import { Hono } from "hono";
 import { sign, verify } from "hono/jwt";
 import { PrismaClient } from "@prisma/client/edge";
+import {
+  signinInput,
+  signupInput,
+  blogInput,
+  updateInput,
+} from "@ronitraj/narrify-common";
 import { withAccelerate } from "@prisma/extension-accelerate";
 
 const app = new Hono<{
@@ -34,11 +40,15 @@ app.post("/api/v1/user/signup", async (c) => {
     datasourceUrl: c.env.DATABASE_URL,
   }).$extends(withAccelerate());
 
-  const { email, password, name } = await c.req.json();
-
+  const body = await c.req.json();
+  const { success } = signupInput.safeParse(body);
+  if (!success) {
+    c.status(403);
+    return c.json({ err: "invalid input" });
+  }
   const isUserExists = await prisma.user.findUnique({
     where: {
-      email,
+      email: body.email,
     },
   });
 
@@ -49,9 +59,9 @@ app.post("/api/v1/user/signup", async (c) => {
   try {
     const newUser = await prisma.user.create({
       data: {
-        name,
-        email,
-        password,
+        name: body.name,
+        email: body.email,
+        password: body.password,
       },
     });
     const token = await sign({ id: newUser.id }, c.env.JWT_SECRET);
@@ -61,26 +71,22 @@ app.post("/api/v1/user/signup", async (c) => {
   }
 });
 
-app.get("/api/v1/blog/bulk", async (c) => {
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env?.DATABASE_URL,
-  }).$extends(withAccelerate());
-
-  const posts = await prisma.post.findMany({});
-
-  return c.json(posts); // Sending 'posts' instead of 'findPost'
-});
-
 app.post("/api/v1/user/signin", async (c) => {
   const prisma = new PrismaClient({
     datasourceUrl: c.env?.DATABASE_URL,
   }).$extends(withAccelerate());
 
   const body = await c.req.json();
+  const { success } = signinInput.safeParse(body);
+  if (!success) {
+    c.status(403);
+    return c.json({ err: "invalid input" });
+  }
   try {
     const findUser = await prisma.user.findUnique({
       where: {
         email: body.email,
+        password: body.password,
       },
     });
 
@@ -96,12 +102,35 @@ app.post("/api/v1/user/signin", async (c) => {
   }
 });
 
+app.get("/api/v1/blog/bulk", async (c) => {
+  const prisma = new PrismaClient({
+    datasourceUrl: c.env?.DATABASE_URL,
+  }).$extends(withAccelerate());
+
+  const posts = await prisma.post.findMany({
+    include: {
+      author: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  });
+
+  return c.json(posts); // Sending 'posts' instead of 'findPost'
+});
+
 app.post("/api/v1/blog", async (c) => {
   const userId = c.get("userId");
   const prisma = new PrismaClient({
     datasourceUrl: c.env?.DATABASE_URL,
   }).$extends(withAccelerate());
   const body = await c.req.json();
+  const { success } = blogInput.safeParse(body);
+  if (!success) {
+    c.status(403);
+    return c.json({ err: "invalid input" });
+  }
   try {
     const newPost = await prisma.post.create({
       data: {
@@ -124,6 +153,11 @@ app.put("/api/v1/blog", async (c) => {
   }).$extends(withAccelerate());
 
   const body = await c.req.json();
+  const { success } = updateInput.safeParse(body);
+  if (!success) {
+    c.status(403);
+    return c.json({ err: "invalid input" });
+  }
   const updatePost = await prisma.post.update({
     where: {
       id: body.id,
