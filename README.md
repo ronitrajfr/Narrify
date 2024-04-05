@@ -1,3 +1,5 @@
+![Untitled design](https://github.com/rrajofficial7/Narrify/assets/157343700/8ce0a93f-9ba3-4647-a015-d732da008259)
+
 #  Welcome to Narrify!
 
 Where every click opens a gateway to fresh insights, vibrant narratives, and endless inspiration. Join our community of avid readers and passionate writers as we journey through the boundless realms of knowledge together.
