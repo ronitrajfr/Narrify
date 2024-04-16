@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { sign, verify } from "hono/jwt";
 import { PrismaClient } from "@prisma/client/edge";
+import { cors } from "hono/cors";
 import {
   signinInput,
   signupInput,
@@ -18,6 +19,7 @@ const app = new Hono<{
     userId: string;
   };
 }>();
+app.use("/*", cors());
 
 app.use("/api/v1/blog/*", async (c, next) => {
   const jwt = c.req.header("Authorization");

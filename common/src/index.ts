@@ -23,7 +23,7 @@ export const updateInput = z.object({
 export type UpdateInput = z.infer<typeof updateInput>;
 
 export const blogInput = z.object({
-  title: z.string(),
+  title: z.string().max(55),
   content: z.string(),
 });
 
